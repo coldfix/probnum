@@ -1,0 +1,49 @@
+kind: pipeline
+name: benchmark
+
+steps:
+  - name: info
+    image: python:3.8
+    commands:
+      - pwd
+      - env |sort
+
+  - name: benchmark
+    image: python:3.8
+    environment:
+      GITHUB_TOKEN:
+        from_secret: GITHUB_TOKEN
+    commands:
+      # Setup up some variables/aliases:
+      - export BRANCH=$DRONE_COMMIT_BRANCH
+      - export COMMIT=$DRONE_COMMIT_SHA
+      - export PREFIX=$DRONE_WORKSPACE
+      - export SLUG=$DRONE_REPO
+      - export REPO=https://$GITHUB_TOKEN@github.com/$SLUG
+
+      # Fetch database
+      - cd "$PREFIX"
+      - mkdir -p benchmarks
+      - mkdir -p docs/_build
+      - git clone $REPO-benchmarks.git benchmarks/.asv -b db-$BRANCH
+      - git clone $REPO-benchmarks.git docs/_build/html -b gh-pages
+
+      # Run benchmarks
+      - cd "$PREFIX/benchmarks"
+      - pip install asv virtualenv
+      - asv machine --machine $DRONE_STAGE_MACHINE --yes
+      - 'asv run --skip-existing-commits "$COMMIT~10..$COMMIT"'
+      - asv publish
+
+      # Update database
+      - cd "$PREFIX/benchmarks/.asv"
+      - git add results
+      - 'git commit -m "Update database: $COMMIT~10..$COMMIT"'
+      - git push
+
+      # Deploy to github
+      - cd "$PREFIX/docs/_build/html"
+      - touch .nojekyll
+      - git add benchmarks .nojekyll
+      - 'git commit -m "Results from $(date "+%F %T") at $COMMIT"'
+      - git push
