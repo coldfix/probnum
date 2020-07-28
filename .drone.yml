@@ -1,0 +1,10 @@
+kind: pipeline
+name: benchmark
+
+steps:
+  - name: install
+    image: python:3.8
+    commands:
+      - pip install asv virtualenv
+      - cd benchmarks
+      - asv run HEAD^..HEAD
