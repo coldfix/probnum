@@ -1,0 +1,36 @@
+# Webhook configuration for https://github.com/adnanh/webhook.
+#
+# We use the "go template" format, in order to load the shared secret from the
+# environment variable $GITHUB_SECRET. For more information, see:
+#
+#  - https://golang.org/pkg/text/template/#hdr-Actions
+#  - https://github.com/adnanh/webhook/blob/master/docs/Templates.md
+#  - https://developer.github.com/webhooks/event-payloads/#push
+
+- id: push
+  execute-command: /benchmarks/startjob.sh
+  command-working-directory: /benchmarks
+  pass-arguments-to-command:
+    - {source: payload, name: ref}
+    - {source: payload, name: before}
+    - {source: payload, name: after}
+  trigger-rule:
+    and:
+    # Trigger only when pushing to specified branch:
+    - match:
+        type: value
+        value: refs/heads/development
+        parameter:
+          source: payload
+          name: ref
+    # Protect against unauthorized requests:
+    - match:
+        type: "payload-hash-sha1"
+        secret: '{{ getenv "GITHUB_SECRET" | js }}'
+        parameter:
+          source: header
+          name: X-Hub-Signature
+  response-message: "I got the payload!"
+  response-headers:
+    - name: Access-Control-Allow-Origin
+      value: "*"

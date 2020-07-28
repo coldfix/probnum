@@ -1,0 +1,11 @@
+version: "3"
+services:
+  runner:
+    build: .
+    restart: always
+    env_file:
+      - vars.env
+    ports:
+      - 5678:5678
+    cap_drop:
+      - all
